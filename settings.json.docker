@@ -694,6 +694,28 @@
    * Enable/Disable case-insensitive pad names.
    */
   "lowerCasePadIds": "${LOWER_CASE_PAD_IDS:false}",
+
+  /*
+   * AI Assistant Configuration
+   * 
+   * Enables AI-powered assistance for pad editing and content manipulation.
+   * Each user gets their own private AI chat with persistent history.
+   */
+  "aiAssistant": {
+    "enabled": "${AI_ASSISTANT_ENABLED:false}",
+    "provider": "${AI_PROVIDER:groq}",
+    "apiKey": "${AI_API_KEY:}",
+    "model": "${AI_MODEL:llama-3.3-70b-versatile}",
+    "maxTokens": 2000,
+    "temperature": 0.7,
+    "features": {
+      "canReadPad": true,
+      "canWritePad": true,
+      "canSummarize": true,
+      "maxRequestsPerMinute": 10
+    }
+  },
+
   "sso": {
     "issuer": "${SSO_ISSUER:http://localhost:9001}",
       "clients": [

@@ -701,6 +701,86 @@
    */
   "lowerCasePadIds": false,
 
+  /*
+   * AI Assistant Configuration
+   * 
+   * Enables AI-powered assistance for pad editing and content manipulation.
+   * Each user gets their own private AI chat with persistent history.
+   */
+  "aiAssistant": {
+    /*
+     * Enable/disable the AI Assistant feature
+     */
+    "enabled": "${AI_ASSISTANT_ENABLED:false}",
+
+    /*
+     * AI provider to use
+     * 
+     * Supported values:
+     * - "groq": Use Groq API (fast inference)
+     * - "openai": Use OpenAI API
+     * - "local": Use local model (future support)
+     */
+    "provider": "${AI_PROVIDER:groq}",
+
+    /*
+     * API key for the AI provider
+     * 
+     * For Groq: Get your API key from https://console.groq.com/
+     * For OpenAI: Get your API key from https://platform.openai.com/
+     */
+    "apiKey": "${AI_API_KEY:}",
+
+    /*
+     * Model to use
+     * 
+     * Groq models:
+     * - "llama-3.3-70b-versatile" (recommended, balanced)
+     * - "llama-3.1-70b-versatile"
+     * - "mixtral-8x7b-32768"
+     * 
+     * OpenAI models:
+     * - "gpt-4-turbo-preview"
+     * - "gpt-3.5-turbo"
+     */
+    "model": "${AI_MODEL:llama-3.3-70b-versatile}",
+
+    /*
+     * Maximum tokens in AI response
+     */
+    "maxTokens": 2000,
+
+    /*
+     * Temperature for AI responses (0.0 = deterministic, 1.0 = creative)
+     */
+    "temperature": 0.7,
+
+    /*
+     * Features configuration
+     */
+    "features": {
+      /*
+       * Allow AI to read pad content
+       */
+      "canReadPad": true,
+
+      /*
+       * Allow AI to write/modify pad content (requires user confirmation)
+       */
+      "canWritePad": true,
+
+      /*
+       * Allow AI to summarize pad content
+       */
+      "canSummarize": true,
+
+      /*
+       * Maximum AI requests per user per minute (rate limiting)
+       */
+      "maxRequestsPerMinute": 10
+    }
+  },
+
   "sso": {
     "issuer": "${SSO_ISSUER:http://localhost:9001}",
       "clients": [

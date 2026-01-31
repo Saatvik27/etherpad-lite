@@ -1,5 +1,6 @@
 packages:
   - src
+  - src/ai-chat-widget
   - admin
   - bin
   - doc

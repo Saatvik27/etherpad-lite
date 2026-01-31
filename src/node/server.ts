@@ -182,6 +182,15 @@ exports.start = async () => {
     logger.debug(`Installed server-side hooks:\n${plugins.formatHooks('hooks', false)}`);
     await hooks.aCallAll('loadSettings', {settings});
     await hooks.aCallAll('createServer');
+    
+    // Initialize AI Assistant
+    const aiAssistant = require('./ai_assistant');
+    await aiAssistant.init();
+    const AIMessageHandler = require('./ai_assistant/AIMessageHandler');
+    await AIMessageHandler.initAgent();
+    if (aiAssistant.isEnabled()) {
+      logger.info('AI Assistant is enabled');
+    }
   } catch (err) {
     logger.error('Error occurred while starting Etherpad');
     state = State.STATE_TRANSITION_FAILED;

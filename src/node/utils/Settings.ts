@@ -290,6 +290,20 @@ export type SettingsType = {
   importMaxFileSize: number,
   enableAdminUITests: boolean,
   lowerCasePadIds: boolean,
+  aiAssistant?: {
+    enabled: boolean,
+    provider: 'groq' | 'openai' | 'local',
+    apiKey: string,
+    model: string,
+    maxTokens: number,
+    temperature: number,
+    features: {
+      canReadPad: boolean,
+      canWritePad: boolean,
+      canSummarize: boolean,
+      maxRequestsPerMinute: number,
+    },
+  },
   randomVersionString: string,
   gitVersion: string
   getPublicSettings: () => Pick<SettingsType, "title" | "skinVariants"|"randomVersionString"|"skinName"|"toolbar"| "exposeVersion"| "gitVersion">,
@@ -642,6 +656,20 @@ const settings: SettingsType = {
  * e.g. /p/EtHeRpAd to /p/etherpad
  */
   lowerCasePadIds: false,
+  aiAssistant: {
+    enabled: false,
+    provider: 'groq',
+    apiKey: '',
+    model: 'llama-3.3-70b-versatile',
+    maxTokens: 2000,
+    temperature: 0.7,
+    features: {
+      canReadPad: true,
+      canWritePad: true,
+      canSummarize: true,
+      maxRequestsPerMinute: 10,
+    },
+  },
   randomVersionString: '2123',
   getPublicSettings: () => {
     return {

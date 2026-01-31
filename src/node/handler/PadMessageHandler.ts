@@ -48,6 +48,7 @@ import {ChangesetRequest, PadUserInfo, SocketClientRequest} from "../types/Socke
 import {APool, AText, PadAuthor, PadType} from "../types/PadType";
 import {ChangeSet} from "../types/ChangeSet";
 import {ChatMessageMessage, ClientReadyMessage, ClientSaveRevisionMessage, ClientSuggestUserName, ClientUserChangesMessage, ClientVarMessage, CustomMessage, PadDeleteMessage, UserNewInfoMessage} from "../../static/js/types/SocketIOMessage";
+import * as AIMessageHandler from '../ai_assistant/AIMessageHandler';
 import {Builder} from "../../static/js/Builder";
 const webaccess = require('../hooks/express/webaccess');
 const { checkValidRev } = require('../utils/checkValidRev');
@@ -408,6 +409,9 @@ exports.handleMessage = async (socket:any, message: ClientVarMessage) => {
             case 'USERINFO_UPDATE': await handleUserInfoUpdate(socket, message as unknown as UserNewInfoMessage); break;
             case 'CHAT_MESSAGE': await handleChatMessage(socket, message as unknown as ChatMessageMessage); break;
             case 'GET_CHAT_MESSAGES': await handleGetChatMessages(socket, message); break;
+            case 'AI_CHAT_MESSAGE': await AIMessageHandler.handleAIChatMessage(socket, message.data); break;
+            case 'AI_CONFIRM_ACTION': await AIMessageHandler.handleAIConfirmation(socket, message.data); break;
+            case 'AI_GET_HISTORY': await AIMessageHandler.handleGetAIHistory(socket, message.data); break;
             case 'SAVE_REVISION': await handleSaveRevisionMessage(socket, message as unknown as ClientSaveRevisionMessage); break;
             case 'CLIENT_MESSAGE': {
               const {type} = message.data.payload;

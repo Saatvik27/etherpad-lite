@@ -42,6 +42,7 @@
 
   <% e.begin_block("styles"); %>
   <link href="../static/css/pad.css?v=<%=settings.randomVersionString%>" rel="stylesheet">
+  <link href="../static/js/ai-widget/ai-chat-widget.css?v=<%=settings.randomVersionString%>" rel="stylesheet">
 
   <% e.begin_block("customStyles"); %>
   <link href="../static/skins/<%=encodeURI(settings.skinName)%>/pad.css?v=<%=settings.randomVersionString%>" rel="stylesheet">
@@ -454,6 +455,7 @@
 
   <% e.begin_block("customScripts"); %>
   <script type="text/javascript" src="../static/skins/<%=encodeURI(settings.skinName)%>/pad.js?v=<%=settings.randomVersionString%>"></script>
+  <script type="text/javascript" src="../static/js/ai-widget/ai-chat-widget.iife.js?v=<%=settings.randomVersionString%>"></script>
   <% e.end_block(); %>
   <div style="display:none"><a href="/javascript" data-jslicense="1">JavaScript license information</a></div>
   <% e.end_block(); %>
