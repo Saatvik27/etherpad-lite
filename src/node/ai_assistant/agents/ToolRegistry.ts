@@ -17,8 +17,11 @@ export class ToolRegistry {
       this.createReadPadTool(padId),
       this.createSearchPadTool(padId),
       this.createGetMetadataTool(padId),
+      this.createInsertTextTool(padId, authorId),
       this.createAppendTextTool(padId, authorId),
       this.createReplaceTextTool(padId, authorId),
+      this.createDeleteTextTool(padId, authorId),
+      this.createClearPadTool(padId, authorId),
     ];
   }
 
@@ -82,17 +85,38 @@ export class ToolRegistry {
   }
 
   /**
+   * Tool: Insert text at specific position
+   */
+  private static createInsertTextTool(padId: string, authorId: string) {
+    return new DynamicStructuredTool({
+      name: 'insert_text_at_position',
+      description: 'Insert text at a specific line number in the pad. Use this when you need to add content in the middle of the document, not just at the end. Line numbers start at 0.',
+      schema: z.object({
+        lineNumber: z.number().describe('The line number where to insert the text (0-based)'),
+        text: z.string().describe('The text to insert'),
+      }),
+      func: async ({lineNumber, text}) => {
+        return JSON.stringify({
+          action: 'insert',
+          lineNumber,
+          text,
+          requiresConfirmation: true,
+        });
+      },
+    });
+  }
+
+  /**
    * Tool: Append text to pad
    */
   private static createAppendTextTool(padId: string, authorId: string) {
     return new DynamicStructuredTool({
       name: 'append_text_to_pad',
-      description: 'Append text to the end of the pad. IMPORTANT: This modifies the pad and requires user confirmation.',
+      description: 'Append text to the END of the pad. Use this only when adding content at the very end. For inserting in the middle, use insert_text_at_position instead.',
       schema: z.object({
         text: z.string().describe('The text to append to the pad'),
       }),
       func: async ({text}) => {
-        // This will be intercepted by the agent handler for confirmation
         return JSON.stringify({
           action: 'append',
           text,
@@ -108,17 +132,53 @@ export class ToolRegistry {
   private static createReplaceTextTool(padId: string, authorId: string) {
     return new DynamicStructuredTool({
       name: 'replace_text_in_pad',
-      description: 'Find and replace text in the pad. IMPORTANT: This modifies the pad and requires user confirmation.',
+      description: 'Find and replace ALL occurrences of specific text in the pad. Use this to update existing content.',
       schema: z.object({
-        searchText: z.string().describe('The text to find'),
+        searchText: z.string().describe('The exact text to find'),
         replacementText: z.string().describe('The text to replace it with'),
       }),
       func: async ({searchText, replacementText}) => {
-        // This will be intercepted by the agent handler for confirmation
         return JSON.stringify({
           action: 'replace',
           searchText,
           replacementText,
+          requiresConfirmation: true,
+        });
+      },
+    });
+  }
+
+  /**
+   * Tool: Delete specific text
+   */
+  private static createDeleteTextTool(padId: string, authorId: string) {
+    return new DynamicStructuredTool({
+      name: 'delete_text',
+      description: 'Delete ALL occurrences of specific text from the pad. Use this to remove unwanted content.',
+      schema: z.object({
+        textToDelete: z.string().describe('The exact text to delete from the pad'),
+      }),
+      func: async ({textToDelete}) => {
+        return JSON.stringify({
+          action: 'delete',
+          textToDelete,
+          requiresConfirmation: true,
+        });
+      },
+    });
+  }
+
+  /**
+   * Tool: Clear entire pad
+   */
+  private static createClearPadTool(padId: string, authorId: string) {
+    return new DynamicStructuredTool({
+      name: 'clear_pad',
+      description: 'Clear ALL content from the pad (makes it completely empty). Use ONLY when user explicitly asks to clear, empty, or delete everything.',
+      schema: z.object({}),
+      func: async () => {
+        return JSON.stringify({
+          action: 'clear',
           requiresConfirmation: true,
         });
       },

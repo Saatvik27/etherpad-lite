@@ -9,7 +9,11 @@ export interface PendingAction {
   actionId: string;
   type: string;
   description: string;
-  details: any;
+  action: any;
+  padId: string;
+  userId: string;
+  authorId: string;
+  originalMessage: string;
 }
 
 export interface AIChatState {

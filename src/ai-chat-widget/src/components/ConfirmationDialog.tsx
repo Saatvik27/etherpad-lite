@@ -56,23 +56,140 @@ export function ConfirmationDialog() {
             }}>
               {state.pendingAction.description}
             </p>
-            {state.pendingAction.details && (
+            {state.pendingAction.action && (
               <div style={{
                 marginTop: '14px',
-                padding: '12px',
+                padding: '14px',
                 background: '#F9FAFB',
                 borderRadius: '8px',
                 border: '1px solid #E5E7EB',
+                maxHeight: '300px',
+                overflow: 'auto',
               }}>
-                <p style={{
-                  fontSize: '13px',
-                  fontFamily: 'monospace',
-                  color: '#374151',
-                  margin: '0',
-                  whiteSpace: 'pre-wrap',
-                }}>
-                  {JSON.stringify(state.pendingAction.details, null, 2)}
-                </p>
+                {state.pendingAction.action.type === 'append' && (
+                  <>
+                    <p style={{
+                      fontSize: '12px',
+                      fontWeight: '600',
+                      color: '#6B7280',
+                      margin: '0 0 8px 0',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.05em',
+                    }}>
+                      📝 Text to append:
+                    </p>
+                    <p style={{
+                      fontSize: '14px',
+                      color: '#374151',
+                      margin: '0',
+                      whiteSpace: 'pre-wrap',
+                      lineHeight: '1.6',
+                    }}>
+                      {state.pendingAction.action.newText}
+                    </p>
+                  </>
+                )}
+                {state.pendingAction.action.type === 'insert' && (
+                  <>
+                    <p style={{
+                      fontSize: '12px',
+                      fontWeight: '600',
+                      color: '#6B7280',
+                      margin: '0 0 8px 0',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.05em',
+                    }}>
+                      ➕ Insert at line {state.pendingAction.action.lineNumber}:
+                    </p>
+                    <p style={{
+                      fontSize: '14px',
+                      color: '#059669',
+                      margin: '0',
+                      whiteSpace: 'pre-wrap',
+                      lineHeight: '1.6',
+                    }}>
+                      {state.pendingAction.action.newText}
+                    </p>
+                  </>
+                )}
+                {state.pendingAction.action.type === 'replace' && (
+                  <>
+                    <p style={{
+                      fontSize: '12px',
+                      fontWeight: '600',
+                      color: '#6B7280',
+                      margin: '0 0 8px 0',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.05em',
+                    }}>
+                      🔄 Replace:
+                    </p>
+                    <p style={{
+                      fontSize: '14px',
+                      color: '#DC2626',
+                      margin: '0 0 12px 0',
+                      textDecoration: 'line-through',
+                      whiteSpace: 'pre-wrap',
+                    }}>
+                      {state.pendingAction.action.oldText}
+                    </p>
+                    <p style={{
+                      fontSize: '12px',
+                      fontWeight: '600',
+                      color: '#6B7280',
+                      margin: '0 0 8px 0',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.05em',
+                    }}>
+                      With:
+                    </p>
+                    <p style={{
+                      fontSize: '14px',
+                      color: '#059669',
+                      margin: '0',
+                      whiteSpace: 'pre-wrap',
+                    }}>
+                      {state.pendingAction.action.newText}
+                    </p>
+                  </>
+                )}
+                {state.pendingAction.action.type === 'delete' && (
+                  <>
+                    <p style={{
+                      fontSize: '12px',
+                      fontWeight: '600',
+                      color: '#6B7280',
+                      margin: '0 0 8px 0',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.05em',
+                    }}>
+                      🗑️ Text to delete:
+                    </p>
+                    <p style={{
+                      fontSize: '14px',
+                      color: '#DC2626',
+                      margin: '0',
+                      textDecoration: 'line-through',
+                      whiteSpace: 'pre-wrap',
+                      lineHeight: '1.6',
+                    }}>
+                      {state.pendingAction.action.textToDelete}
+                    </p>
+                  </>
+                )}
+                {state.pendingAction.action.type === 'clear' && (
+                  <>
+                    <p style={{
+                      fontSize: '14px',
+                      fontWeight: '600',
+                      color: '#DC2626',
+                      margin: '0',
+                      textAlign: 'center',
+                    }}>
+                      ⚠️ This will permanently delete ALL content from the pad!
+                    </p>
+                  </>
+                )}
               </div>
             )}
           </div>

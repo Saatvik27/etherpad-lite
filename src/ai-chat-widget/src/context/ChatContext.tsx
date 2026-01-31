@@ -58,6 +58,12 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     // Connect to socket
     socketService.connect().then(() => {
       dispatch({ type: 'SET_CONNECTED', payload: true });
+      
+      // Handle disconnections
+      socketService.onDisconnect(() => {
+        console.log('[AI Chat Widget] Disconnected, updating status...');
+        dispatch({ type: 'SET_CONNECTED', payload: false });
+      });
 
       // Setup message handlers
       socketService.on('AI_RESPONSE', (data: any) => {
@@ -75,13 +81,29 @@ export function ChatProvider({ children }: { children: ReactNode }) {
             },
           });
         } else if (data.requiresConfirmation) {
+          const parentWindow = window.parent || window;
+          const pad = (parentWindow as any).pad;
+          
+          let padId = pad?.padId || pad?.getPadId?.() || 'unknown';
+          if (padId === 'unknown') {
+            const match = parentWindow.location.pathname.match(/\/p\/([^\/]+)/);
+            if (match) padId = match[1];
+          }
+          
+          const userId = pad?.myUserInfo?.userId || pad?.userId || 'anonymous';
+          const authorId = pad?.getUserId?.() || userId;
+          
           dispatch({
             type: 'SET_PENDING_ACTION',
             payload: {
-              actionId: data.actionId,
-              type: data.action,
+              actionId: Date.now().toString(),
+              type: data.action?.type || 'unknown',
               description: data.response,
-              details: data.actionDetails,
+              action: data.action,
+              padId,
+              userId,
+              authorId,
+              originalMessage: state.messages.filter(m => m.role === 'user').pop()?.content || '',
             },
           });
           dispatch({
@@ -161,32 +183,61 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
     dispatch({ type: 'SET_THINKING', payload: true });
 
-    // Get pad info from parent window
+    // Get pad info from parent window - try multiple locations
     const parentWindow = window.parent || window;
     const pad = (parentWindow as any).pad;
-    const padId = pad?.padId || 'unknown';
-    const userId = pad?.myUserInfo?.userId || 'anonymous';
     
-    console.log('[AI Chat Widget] Sending message:', { userMessage: content, padId, userId });
+    console.log('[AI Chat Widget] Full pad object:', pad);
+    console.log('[AI Chat Widget] Window location:', parentWindow.location);
+    
+    // Try different ways to get padId
+    let padId = pad?.padId || pad?.getPadId?.() || 'unknown';
+    
+    // Try from URL as fallback
+    if (padId === 'unknown') {
+      const match = parentWindow.location.pathname.match(/\/p\/([^\/]+)/);
+      if (match) {
+        padId = match[1];
+        console.log('[AI Chat Widget] Got padId from URL:', padId);
+      }
+    }
+    
+    const userId = pad?.myUserInfo?.userId || pad?.userId || 'anonymous';
+    const authorId = pad?.getUserId?.() || userId;
+    
+    console.log('[AI Chat Widget] Sending message:', { userMessage: content, padId, userId, authorId });
     
     socketService.send('AI_CHAT_MESSAGE', { 
       userMessage: content,
       padId,
       userId,
-      authorId: userId
+      authorId
     });
   };
 
   const confirmAction = (actionId: string) => {
-    socketService.send('AI_CONFIRM_ACTION', { actionId, confirmed: true });
-    dispatch({ type: 'SET_PENDING_ACTION', payload: null });
+    if (state.pendingAction) {
+      socketService.send('AI_CONFIRM_ACTION', {
+        padId: state.pendingAction.padId,
+        userId: state.pendingAction.userId,
+        authorId: state.pendingAction.authorId,
+        confirmed: true,
+        action: state.pendingAction.action,
+        originalMessage: state.pendingAction.originalMessage,
+      });
+      dispatch({ type: 'SET_PENDING_ACTION', payload: null });
+    }
   };
 
   const cancelAction = () => {
     if (state.pendingAction) {
       socketService.send('AI_CONFIRM_ACTION', {
-        actionId: state.pendingAction.actionId,
+        padId: state.pendingAction.padId,
+        userId: state.pendingAction.userId,
+        authorId: state.pendingAction.authorId,
         confirmed: false,
+        action: state.pendingAction.action,
+        originalMessage: state.pendingAction.originalMessage,
       });
       dispatch({ type: 'SET_PENDING_ACTION', payload: null });
       dispatch({
