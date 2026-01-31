@@ -14,14 +14,30 @@ export class ToolRegistry {
    */
   static createTools(padId: string, authorId: string) {
     return [
+      // Read-only tools
       this.createReadPadTool(padId),
       this.createSearchPadTool(padId),
       this.createGetMetadataTool(padId),
+      this.createGetTextRangeTool(padId),
+      this.createFindAndListTool(padId),
+      this.createAnalyzeStructureTool(padId),
+      this.createGetAuthorTextTool(padId),
+      this.createGetChangesSinceTool(padId),
+      
+      // Write tools
       this.createInsertTextTool(padId, authorId),
       this.createAppendTextTool(padId, authorId),
       this.createReplaceTextTool(padId, authorId),
       this.createDeleteTextTool(padId, authorId),
       this.createClearPadTool(padId, authorId),
+      this.createFormatTextTool(padId, authorId),
+      this.createCreateListTool(padId, authorId),
+      this.createRewriteSectionTool(padId, authorId),
+      this.createIndentLinesTool(padId, authorId),
+      this.createRemoveFormattingTool(padId, authorId),
+      this.createSummarizeSectionTool(padId, authorId),
+      this.createExpandSectionTool(padId, authorId),
+      this.createFixGrammarTool(padId, authorId),
     ];
   }
 
@@ -179,6 +195,304 @@ export class ToolRegistry {
       func: async () => {
         return JSON.stringify({
           action: 'clear',
+          requiresConfirmation: true,
+        });
+      },
+    });
+  }
+
+  /**
+   * Tool: Get text range (specific lines)
+   */
+  private static createGetTextRangeTool(padId: string) {
+    return new DynamicStructuredTool({
+      name: 'get_text_range',
+      description: 'Read a specific range of lines from the pad instead of the entire document. Much more efficient for large pads. Use this when you only need to see specific sections.',
+      schema: z.object({
+        startLine: z.number().describe('Starting line number (1-based)'),
+        endLine: z.number().describe('Ending line number (1-based, inclusive)'),
+      }),
+      func: async ({startLine, endLine}) => {
+        const result = await PadContentReader.getTextRange(padId, startLine, endLine);
+        return `Lines ${result.startLine}-${result.endLine} of ${result.totalLines}:\n\n${result.text}`;
+      },
+    });
+  }
+
+  /**
+   * Tool: Find and list with context
+   */
+  private static createFindAndListTool(padId: string) {
+    return new DynamicStructuredTool({
+      name: 'find_and_list',
+      description: 'Search for text and show surrounding context lines. Better than basic search when you need to understand how the text is used.',
+      schema: z.object({
+        searchTerm: z.string().describe('The text to search for'),
+        contextLines: z.number().optional().describe('Number of lines to show before and after each match (default: 2)'),
+      }),
+      func: async ({searchTerm, contextLines}) => {
+        const result = await PadContentReader.findAndList(padId, searchTerm, contextLines || 2);
+        if (!result.found) {
+          return `Text "${searchTerm}" not found in the pad.`;
+        }
+        
+        let output = `Found ${result.matches.length} match(es):\n\n`;
+        result.matches.forEach((match, index) => {
+          output += `--- Match ${index + 1} at Line ${match.line}, Column ${match.column} ---\n`;
+          if (match.contextBefore.length > 0) {
+            output += match.contextBefore.join('\n') + '\n';
+          }
+          output += `>>> ${match.lineText}\n`;
+          if (match.contextAfter.length > 0) {
+            output += match.contextAfter.join('\n') + '\n';
+          }
+          output += '\n';
+        });
+        return output;
+      },
+    });
+  }
+
+  /**
+   * Tool: Analyze document structure
+   */
+  private static createAnalyzeStructureTool(padId: string) {
+    return new DynamicStructuredTool({
+      name: 'analyze_structure',
+      description: 'Analyze the document structure to identify lists, formatted sections, and layout. Helps understand document organization.',
+      schema: z.object({}),
+      func: async () => {
+        const structure = await PadContentReader.analyzeStructure(padId);
+        let output = `Document Structure Analysis:\n\n`;
+        output += `Total Lines: ${structure.totalLines}\n`;
+        output += `Empty Lines: ${structure.emptyLines.length}\n\n`;
+        
+        if (structure.lists.length > 0) {
+          output += `Lists Found (${structure.lists.length}):\n`;
+          structure.lists.forEach(list => {
+            output += `  Line ${list.line}: ${list.type} list, level ${list.level}\n`;
+          });
+        } else {
+          output += `No lists found\n`;
+        }
+        
+        return output;
+      },
+    });
+  }
+
+  /**
+   * Tool: Get text by author
+   */
+  private static createGetAuthorTextTool(padId: string) {
+    return new DynamicStructuredTool({
+      name: 'get_author_text',
+      description: 'Get all text written by a specific author. Useful for understanding individual contributions.',
+      schema: z.object({
+        authorId: z.string().describe('The author ID to filter by'),
+      }),
+      func: async ({authorId}) => {
+        const result = await PadContentReader.getAuthorText(padId, authorId);
+        return `Author ${authorId} contribution:\n` +
+               `Characters: ${result.charCount}\n` +
+               `Percentage: ${result.contribution.toFixed(2)}%\n\n` +
+               `${result.text}`;
+      },
+    });
+  }
+
+  /**
+   * Tool: Get changes since revision
+   */
+  private static createGetChangesSinceTool(padId: string) {
+    return new DynamicStructuredTool({
+      name: 'get_changes_since',
+      description: 'Get all changes made since a specific revision number. Useful for understanding recent edits.',
+      schema: z.object({
+        sinceRevision: z.number().describe('The revision number to start from'),
+      }),
+      func: async ({sinceRevision}) => {
+        const result = await PadContentReader.getChangesSince(padId, sinceRevision);
+        let output = `Changes from revision ${sinceRevision} to ${result.currentRevision}:\n\n`;
+        result.changes.forEach(change => {
+          const date = new Date(change.timestamp).toISOString();
+          output += `Rev ${change.revision} by ${change.author} at ${date}\n`;
+          output += `  ${change.changeDescription}\n\n`;
+        });
+        return output;
+      },
+    });
+  }
+
+  /**
+   * Tool: Format text (bold, italic, underline, strikethrough)
+   */
+  private static createFormatTextTool(padId: string, authorId: string) {
+    return new DynamicStructuredTool({
+      name: 'format_text',
+      description: 'Apply formatting (bold, italic, underline, strikethrough) to specific text. Uses markdown-style markers.',
+      schema: z.object({
+        textToFormat: z.string().describe('The exact text to format'),
+        formatType: z.enum(['bold', 'italic', 'underline', 'strikethrough']).describe('The type of formatting to apply'),
+      }),
+      func: async ({textToFormat, formatType}) => {
+        return JSON.stringify({
+          action: 'format',
+          textToFormat,
+          formatType,
+          requiresConfirmation: true,
+        });
+      },
+    });
+  }
+
+  /**
+   * Tool: Create list
+   */
+  private static createCreateListTool(padId: string, authorId: string) {
+    return new DynamicStructuredTool({
+      name: 'create_list',
+      description: 'Create a bullet or numbered list from an array of items. Can specify indent level (1-16).',
+      schema: z.object({
+        items: z.array(z.string()).describe('Array of list items'),
+        listType: z.enum(['ordered', 'unordered']).describe('Type of list: ordered (numbered) or unordered (bullets)'),
+        indentLevel: z.number().optional().describe('Indent level (1-16, default: 1)'),
+      }),
+      func: async ({items, listType, indentLevel}) => {
+        return JSON.stringify({
+          action: 'create_list',
+          items,
+          listType,
+          indentLevel: indentLevel || 1,
+          requiresConfirmation: true,
+        });
+      },
+    });
+  }
+
+  /**
+   * Tool: Rewrite section
+   */
+  private static createRewriteSectionTool(padId: string, authorId: string) {
+    return new DynamicStructuredTool({
+      name: 'rewrite_section',
+      description: 'Replace a specific line range with improved or rewritten text. Better than find/replace for content improvement.',
+      schema: z.object({
+        startLine: z.number().describe('Starting line number (1-based)'),
+        endLine: z.number().describe('Ending line number (1-based, inclusive)'),
+        newText: z.string().describe('The new text to replace the section with'),
+      }),
+      func: async ({startLine, endLine, newText}) => {
+        return JSON.stringify({
+          action: 'rewrite_section',
+          startLine,
+          endLine,
+          newText,
+          requiresConfirmation: true,
+        });
+      },
+    });
+  }
+
+  /**
+   * Tool: Indent lines
+   */
+  private static createIndentLinesTool(padId: string, authorId: string) {
+    return new DynamicStructuredTool({
+      name: 'indent_lines',
+      description: 'Indent or outdent (unindent) specific lines. Useful for adjusting list levels or code blocks.',
+      schema: z.object({
+        startLine: z.number().describe('Starting line number (1-based)'),
+        endLine: z.number().describe('Ending line number (1-based, inclusive)'),
+        direction: z.enum(['indent', 'outdent']).describe('Direction: indent (add spaces) or outdent (remove spaces)'),
+      }),
+      func: async ({startLine, endLine, direction}) => {
+        return JSON.stringify({
+          action: 'indent_lines',
+          startLine,
+          endLine,
+          direction,
+          requiresConfirmation: true,
+        });
+      },
+    });
+  }
+
+  /**
+   * Tool: Remove formatting
+   */
+  private static createRemoveFormattingTool(padId: string, authorId: string) {
+    return new DynamicStructuredTool({
+      name: 'remove_formatting',
+      description: 'Remove all formatting (bold, italic, underline, strikethrough) from a line range.',
+      schema: z.object({
+        startLine: z.number().describe('Starting line number (1-based)'),
+        endLine: z.number().describe('Ending line number (1-based, inclusive)'),
+      }),
+      func: async ({startLine, endLine}) => {
+        return JSON.stringify({
+          action: 'remove_formatting',
+          startLine,
+          endLine,
+          requiresConfirmation: true,
+        });
+      },
+    });
+  }
+
+  /**
+   * Tool: Summarize section
+   */
+  private static createSummarizeSectionTool(padId: string, authorId: string) {
+    return new DynamicStructuredTool({
+      name: 'summarize_section',
+      description: 'Generate a concise summary of a specific line range. Returns the summary as text that you can then insert elsewhere.',
+      schema: z.object({
+        startLine: z.number().describe('Starting line number (1-based)'),
+        endLine: z.number().describe('Ending line number (1-based, inclusive)'),
+      }),
+      func: async ({startLine, endLine}) => {
+        const summary = await PadContentWriter.summarizeSection(padId, startLine, endLine, authorId);
+        return `Summary: ${summary}`;
+      },
+    });
+  }
+
+  /**
+   * Tool: Expand section
+   */
+  private static createExpandSectionTool(padId: string, authorId: string) {
+    return new DynamicStructuredTool({
+      name: 'expand_section',
+      description: 'Expand a specific line range with more detail to reach a target length. Returns expanded text that you can then use to replace the section.',
+      schema: z.object({
+        startLine: z.number().describe('Starting line number (1-based)'),
+        endLine: z.number().describe('Ending line number (1-based, inclusive)'),
+        targetLength: z.number().describe('Target character count for expanded text'),
+      }),
+      func: async ({startLine, endLine, targetLength}) => {
+        const expanded = await PadContentWriter.expandSection(padId, startLine, endLine, targetLength, authorId);
+        return `Expanded: ${expanded}`;
+      },
+    });
+  }
+
+  /**
+   * Tool: Fix grammar
+   */
+  private static createFixGrammarTool(padId: string, authorId: string) {
+    return new DynamicStructuredTool({
+      name: 'fix_grammar',
+      description: 'Correct grammar and spelling errors. Can fix entire pad or specific line range.',
+      schema: z.object({
+        startLine: z.number().optional().describe('Starting line number (1-based, optional - omit to fix entire pad)'),
+        endLine: z.number().optional().describe('Ending line number (1-based, inclusive, optional)'),
+      }),
+      func: async ({startLine, endLine}) => {
+        return JSON.stringify({
+          action: 'fix_grammar',
+          startLine,
+          endLine,
           requiresConfirmation: true,
         });
       },

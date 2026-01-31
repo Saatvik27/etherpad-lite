@@ -188,7 +188,11 @@ exports.start = async () => {
     await aiAssistant.init();
     const AIMessageHandler = require('./ai_assistant/AIMessageHandler');
     await AIMessageHandler.initAgent();
+    
+    // Initialize AI author in database
     if (aiAssistant.isEnabled()) {
+      const PadContentWriter = require('./ai_assistant/PadContentWriter');
+      await PadContentWriter.PadContentWriter.initializeAIAuthor();
       logger.info('AI Assistant is enabled');
     }
   } catch (err) {

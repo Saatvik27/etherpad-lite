@@ -150,3 +150,36 @@ body.mozilla, body.safari {
 #innerdocbody a {
   cursor: pointer !important;
 }
+
+/* -------------------- */
+/* -- AI HIGHLIGHTING - */
+/* -------------------- */
+
+/* AI-generated content highlighting */
+.ai-highlight {
+  background-color: #e3f2fd !important;
+  border-left: 3px solid #2196f3;
+  padding-left: 8px;
+  margin-left: -11px;
+  animation: ai-fade-in 0.5s ease-in;
+}
+
+@keyframes ai-fade-in {
+  from {
+    background-color: #bbdefb;
+    border-left-color: #1976d2;
+  }
+  to {
+    background-color: #e3f2fd;
+    border-left-color: #2196f3;
+  }
+}
+
+/* Remove highlight after fade transition */
+.ai-highlight-fade {
+  transition: background-color 1s ease-out, border-left-color 1s ease-out, margin-left 1s ease-out, padding-left 1s ease-out;
+  background-color: transparent !important;
+  border-left-color: transparent !important;
+  margin-left: 0 !important;
+  padding-left: 0 !important;
+}

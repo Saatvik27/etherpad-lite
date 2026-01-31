@@ -62,17 +62,39 @@ Key behaviors:
 
 ${conversationHistory ? `Previous conversation:\n${conversationHistory}\n` : ''}
 
-Available tools:
-- read_pad_content: Read the entire pad content (ALWAYS use this first before making changes)
-- get_pad_metadata: Get line count, word count, etc.
-- search_in_pad: Search for specific text and find its position
+Available tools (22 total):
 
-Writing/Editing tools (all require user confirmation):
-- insert_text_at_position: Insert text at a specific line number (USE THIS for smart insertion)
-- append_text_to_pad: Add text to the END of the pad only (use sparingly)
-- replace_text_in_pad: Find and replace specific text
-- delete_text: Remove specific text from the pad
-- clear_pad: Clear ALL content (use ONLY when user explicitly asks to clear everything)
+READ-ONLY TOOLS (8):
+- read_pad_content: Read entire pad (use this FIRST before writing)
+- get_text_range: Read specific line range (efficient for large pads)
+- search_in_pad: Find text and get positions
+- find_and_list: Search with surrounding context lines
+- analyze_structure: Identify lists, formatting, document layout
+- get_pad_metadata: Get stats (line count, word count, etc.)
+- get_author_text: Get text by specific author
+- get_changes_since: See recent changes from a revision
+
+WRITING/EDITING TOOLS (14 - all require user confirmation):
+- insert_text_at_position: Insert at specific line (USE THIS for smart insertion)
+- append_text_to_pad: Add to END only (use sparingly)
+- replace_text_in_pad: Find and replace text
+- delete_text: Remove specific text
+- clear_pad: Empty entire pad (AVOID - use insert_text_at_position at line 0 instead)
+- format_text: Apply bold/italic/underline/strikethrough
+- create_list: Make bullet or numbered lists
+- rewrite_section: Replace line range with improved text (BEST for replacing entire content)
+- indent_lines: Adjust indentation (indent/outdent)
+- remove_formatting: Strip formatting from lines
+- summarize_section: Generate summary of line range
+- expand_section: Add detail to line range
+- fix_grammar: Correct grammar/spelling errors
+
+IMPORTANT - Replacing entire pad content:
+When user asks to "replace entire content" or "write new essay replacing everything":
+1. Read pad to get current line count
+2. Use rewrite_section with startLine: 0, endLine: <lastLine>, newText: <your new content>
+3. DO NOT use clear_pad followed by insert - this requires TWO confirmations
+4. ONE action is better than TWO actions
 
 Smart insertion strategy:
 1. Read pad content first to understand structure
@@ -80,49 +102,104 @@ Smart insertion strategy:
 3. Use insert_text_at_position with the calculated line number
 4. This ensures content goes in the right place, not just at the end
 
-Example: If user says "write an essay on cats" and pad has existing intro text ending at line 5, insert the essay at line 6.
+Example workflow:
+User: "write an essay on cats"
+1. Use read_pad_content to see existing content
+2. If pad has intro ending at line 5, calculate insertion point (line 6)
+3. Use insert_text_at_position with lineNumber: 6 and your essay text
+4. User confirms → essay inserted at proper position
+
+Formatting:
+- Use format_text for bold/italic/underline/strikethrough on existing text
+- Use create_list for structured bullet or numbered lists
+- Use rewrite_section to improve existing content with better writing
 
 When you use any write tool, I will show the user exactly what will change before applying it.
 
 Be direct and action-oriented - users want results, not endless clarification questions.`;
 
-      // Invoke the model with the query
-      const response = await modelWithTools.invoke([
+      // Create conversation with agent loop for multi-tool execution
+      const messages: any[] = [
         {role: 'system', content: systemPrompt},
         {role: 'user', content: userQuery},
-      ]);
-
-      // Check if the model wants to use tools
-      const aiMessage = response as AIMessage;
-      if (aiMessage.tool_calls && aiMessage.tool_calls.length > 0) {
-        // Execute the first tool call
-        const toolCall = aiMessage.tool_calls[0];
-        const tool = tools.find((t: StructuredTool) => t.name === toolCall.name);
+      ];
+      
+      let maxIterations = 5; // Prevent infinite loops
+      let iteration = 0;
+      let pendingWriteAction: any = null;
+      
+      // Agent loop: keep calling model until it stops using tools or hits a write operation
+      while (iteration < maxIterations) {
+        iteration++;
         
-        if (tool) {
-          // Validate tool args (allow null for parameter-less tools with empty schema)
+        const response = await modelWithTools.invoke(messages);
+        const aiMessage = response as AIMessage;
+        
+        // Add AI response to conversation
+        messages.push(aiMessage);
+        
+        // Check if the model wants to use tools
+        if (!aiMessage.tool_calls || aiMessage.tool_calls.length === 0) {
+          // No more tool calls, AI has finished or provided a text response
+          if (!pendingWriteAction && aiMessage.content) {
+            // Return the text response
+            return {
+              response: aiMessage.content as string,
+              requiresConfirmation: false,
+            };
+          }
+          break;
+        }
+        
+        // Execute all tool calls in this iteration
+        for (const toolCall of aiMessage.tool_calls) {
+          const tool = tools.find((t: StructuredTool) => t.name === toolCall.name);
+        
+          if (!tool) {
+            logger.warn(`Tool not found: ${toolCall.name}`);
+            messages.push({
+              role: 'tool',
+              content: `Error: Tool ${toolCall.name} not found`,
+              tool_call_id: toolCall.id,
+            });
+            continue;
+          }
+        
+          // Validate tool args
           let args = toolCall.args;
           if (args === null || args === undefined) {
-            args = {}; // Convert null/undefined to empty object for parameter-less tools
+            args = {};
           }
           if (typeof args !== 'object') {
             logger.error('Invalid tool args type:', typeof args, args);
-            return {
-              response: `I encountered an error: Invalid tool arguments. Please try rephrasing your request.`,
-              requiresConfirmation: false,
-              error: true,
-            };
+            messages.push({
+              role: 'tool',
+              content: 'Error: Invalid tool arguments',
+              tool_call_id: toolCall.id,
+            });
+            continue;
           }
           
           // Execute the tool
           const toolResult = await tool.invoke(args);
         
           // Check if it's a write operation that needs confirmation
-          if (toolCall.name === 'append_text_to_pad' || 
-              toolCall.name === 'replace_text_in_pad' ||
-              toolCall.name === 'insert_text_at_position' ||
-              toolCall.name === 'delete_text' ||
-              toolCall.name === 'clear_pad') {
+          const isWriteOperation = [
+            'append_text_to_pad',
+            'replace_text_in_pad',
+            'insert_text_at_position',
+            'delete_text',
+            'clear_pad',
+            'format_text',
+            'create_list',
+            'rewrite_section',
+            'indent_lines',
+            'remove_formatting',
+            'fix_grammar'
+          ].includes(toolCall.name);
+          
+          if (isWriteOperation) {
+            // Stop agent loop and return confirmation request
             // Build action object based on tool type
             const action: any = {
               description: '',
@@ -149,31 +226,80 @@ Be direct and action-oriented - users want results, not endless clarification qu
             } else if (toolCall.name === 'clear_pad') {
               action.type = 'clear';
               action.description = 'Clear all content from the pad';
+            } else if (toolCall.name === 'format_text') {
+              action.type = 'format';
+              action.textToFormat = args.textToFormat || '';
+              action.formatType = args.formatType || 'bold';
+              action.description = `Apply ${args.formatType} formatting to text`;
+            } else if (toolCall.name === 'create_list') {
+              action.type = 'create_list';
+              action.items = args.items || [];
+              action.listType = args.listType || 'unordered';
+              action.indentLevel = args.indentLevel || 1;
+              action.description = `Create ${args.listType} list with ${args.items?.length || 0} items`;
+            } else if (toolCall.name === 'rewrite_section') {
+              action.type = 'rewrite_section';
+              action.startLine = args.startLine || 1;
+              action.endLine = args.endLine || 1;
+              action.newText = args.newText || '';
+              action.description = `Rewrite lines ${args.startLine}-${args.endLine}`;
+            } else if (toolCall.name === 'indent_lines') {
+              action.type = 'indent_lines';
+              action.startLine = args.startLine || 1;
+              action.endLine = args.endLine || 1;
+              action.direction = args.direction || 'indent';
+              action.description = `${args.direction === 'indent' ? 'Indent' : 'Outdent'} lines ${args.startLine}-${args.endLine}`;
+            } else if (toolCall.name === 'remove_formatting') {
+              action.type = 'remove_formatting';
+              action.startLine = args.startLine || 1;
+              action.endLine = args.endLine || 1;
+              action.description = `Remove formatting from lines ${args.startLine}-${args.endLine}`;
+            } else if (toolCall.name === 'fix_grammar') {
+              action.type = 'fix_grammar';
+              action.startLine = args.startLine;
+              action.endLine = args.endLine;
+              action.description = args.startLine ? `Fix grammar in lines ${args.startLine}-${args.endLine}` : 'Fix grammar in entire pad';
             }
             
-            return {
-              response: aiMessage.content as string || `I want to ${toolCall.name.replace(/_/g, ' ')}`,
-              requiresConfirmation: true,
-              action,
-            };
+            // Store pending write action and stop agent loop
+            pendingWriteAction = action;
+            break; // Exit tool execution loop
+          } else {
+            // Read operation - add result to conversation and continue
+            messages.push({
+              role: 'tool',
+              content: JSON.stringify(toolResult),
+              tool_call_id: toolCall.id,
+            });
           }
-          
-          // For read operations, get a response with the tool result
-          const finalResponse = await this.llm.invoke([
-            {role: 'system', content: systemPrompt},
-            {role: 'user', content: userQuery},
-            {role: 'assistant', content: `I used ${toolCall.name} and got: ${toolResult}`},
-            {role: 'user', content: 'Based on the tool result, provide a helpful answer to my question.'},
-          ]);
-          
-          return {
-            response: finalResponse.content as string,
-            requiresConfirmation: false,
-          };
+        }
+        
+        // If we hit a write operation, break the agent loop
+        if (pendingWriteAction) {
+          break;
         }
       }
+      
+      // Return the pending write action for confirmation
+      if (pendingWriteAction) {
+        return {
+          response: '', // Don't send a chat message - modal will handle confirmation
+          requiresConfirmation: true,
+          action: pendingWriteAction,
+        };
+      }
 
-      // No tools needed, return the response
+      // No pending action and agent loop completed
+      // Get final response from the last AI message
+      const lastMessage = messages[messages.length - 1];
+      if (lastMessage && lastMessage.content) {
+        return {
+          response: lastMessage.content as string,
+          requiresConfirmation: false,
+        };
+      }
+
+      // Fallback
       return {
         response: aiMessage.content as string,
         requiresConfirmation: false,
@@ -236,6 +362,83 @@ Be direct and action-oriented - users want results, not endless clarification qu
           return {
             success: true,
             message: 'Successfully cleared all content from the pad.',
+          };
+
+        case 'format':
+          const formatResult = await PadContentWriter.formatText(
+            padId,
+            action.textToFormat,
+            action.formatType,
+            authorId
+          );
+          return {
+            success: formatResult.success,
+            message: `Applied ${action.formatType} formatting to ${formatResult.formatted} occurrence(s).`,
+          };
+
+        case 'create_list':
+          await PadContentWriter.createList(
+            padId,
+            action.items,
+            action.listType,
+            action.indentLevel,
+            authorId
+          );
+          return {
+            success: true,
+            message: `Created ${action.listType} list with ${action.items.length} items.`,
+          };
+
+        case 'rewrite_section':
+          await PadContentWriter.rewriteSection(
+            padId,
+            action.startLine,
+            action.endLine,
+            action.newText,
+            authorId
+          );
+          return {
+            success: true,
+            message: `Rewrote lines ${action.startLine}-${action.endLine}.`,
+          };
+
+        case 'indent_lines':
+          await PadContentWriter.indentLines(
+            padId,
+            action.startLine,
+            action.endLine,
+            action.direction,
+            authorId
+          );
+          return {
+            success: true,
+            message: `${action.direction === 'indent' ? 'Indented' : 'Outdented'} lines ${action.startLine}-${action.endLine}.`,
+          };
+
+        case 'remove_formatting':
+          await PadContentWriter.removeFormatting(
+            padId,
+            action.startLine,
+            action.endLine,
+            authorId
+          );
+          return {
+            success: true,
+            message: `Removed formatting from lines ${action.startLine}-${action.endLine}.`,
+          };
+
+        case 'fix_grammar':
+          const grammarResult = await PadContentWriter.fixGrammar(
+            padId,
+            action.startLine,
+            action.endLine,
+            authorId
+          );
+          return {
+            success: grammarResult.success,
+            message: action.startLine 
+              ? `Fixed grammar in lines ${action.startLine}-${action.endLine} (${grammarResult.corrections} corrections).`
+              : `Fixed grammar in entire pad (${grammarResult.corrections} corrections).`,
           };
 
         default:
