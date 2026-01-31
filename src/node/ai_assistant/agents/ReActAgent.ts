@@ -75,11 +75,11 @@ READ-ONLY TOOLS (8):
 - get_changes_since: See recent changes from a revision
 
 WRITING/EDITING TOOLS (14 - all require user confirmation):
-- insert_text_at_position: Insert at specific line (USE THIS for smart insertion)
-- append_text_to_pad: Add to END only (use sparingly)
+- append_text_to_pad: Add to BOTTOM/END of pad (use when "add to end", "append", "add at bottom")
+- insert_text_at_position: Insert at specific line number (use for positioned insertion)
 - replace_text_in_pad: Find and replace text
 - delete_text: Remove specific text
-- clear_pad: Empty entire pad (AVOID - use insert_text_at_position at line 0 instead)
+- clear_pad: Empty entire pad (AVOID - use rewrite_section instead)
 - format_text: Apply bold/italic/underline/strikethrough
 - create_list: Make bullet or numbered lists
 - rewrite_section: Replace line range with improved text (BEST for replacing entire content)
@@ -89,6 +89,22 @@ WRITING/EDITING TOOLS (14 - all require user confirmation):
 - expand_section: Add detail to line range
 - fix_grammar: Correct grammar/spelling errors
 
+MANDATORY RULE - Always read before modifying:
+When user asks to modify/delete/replace existing content, you MUST:
+1. FIRST use read_pad_content or get_text_range to see what's actually there
+2. THEN use the appropriate write tool with the ACTUAL text you found
+Examples:
+- "remove the quote at the end" → read_pad_content FIRST, find the actual quote text, then delete_text
+- "fix the typo in paragraph 2" → read_pad_content FIRST, see the actual typo, then replace_text_in_pad
+- "delete the conclusion" → read_pad_content FIRST, find actual conclusion text, then delete_text
+DO NOT guess or assume what text is there - always read first!
+
+CRITICAL - Understanding user intent for positioning:
+- "write X" or "add X" or "write at bottom" → use append_text_to_pad (adds at END)
+- "insert at line 5" or "add after intro" → use insert_text_at_position
+- "replace everything" → use rewrite_section with full line range
+- "add to top" → use insert_text_at_position with lineNumber: 0
+
 IMPORTANT - Replacing entire pad content:
 When user asks to "replace entire content" or "write new essay replacing everything":
 1. Read pad to get current line count
@@ -96,18 +112,16 @@ When user asks to "replace entire content" or "write new essay replacing everyth
 3. DO NOT use clear_pad followed by insert - this requires TWO confirmations
 4. ONE action is better than TWO actions
 
-Smart insertion strategy:
-1. Read pad content first to understand structure
-2. Determine appropriate line number for new content
-3. Use insert_text_at_position with the calculated line number
-4. This ensures content goes in the right place, not just at the end
+Smart positioning strategy:
+1. If user says "write", "add", "create" without position → append_text_to_pad (END)
+2. If user says "add at top" or "insert at beginning" → insert_text_at_position lineNumber: 0
+3. If user says "add after X" → read pad first, find X position, then insert_text_at_position
+4. Default behavior: append_text_to_pad (adds at bottom)
 
-Example workflow:
-User: "write an essay on cats"
-1. Use read_pad_content to see existing content
-2. If pad has intro ending at line 5, calculate insertion point (line 6)
-3. Use insert_text_at_position with lineNumber: 6 and your essay text
-4. User confirms → essay inserted at proper position
+Example workflows:
+User: "write an essay on cats" → append_text_to_pad (adds at END)
+User: "add intro at top" → insert_text_at_position with lineNumber: 0
+User: "insert quote after paragraph 2" → read_pad, find line, insert_text_at_position
 
 Formatting:
 - Use format_text for bold/italic/underline/strikethrough on existing text
@@ -152,7 +166,13 @@ Be direct and action-oriented - users want results, not endless clarification qu
         }
         
         // Execute all tool calls in this iteration
+        let foundWriteOperation = false;
         for (const toolCall of aiMessage.tool_calls) {
+          // Skip remaining tool calls if we already found a write operation
+          if (foundWriteOperation) {
+            break;
+          }
+          
           const tool = tools.find((t: StructuredTool) => t.name === toolCall.name);
         
           if (!tool) {
@@ -199,6 +219,9 @@ Be direct and action-oriented - users want results, not endless clarification qu
           ].includes(toolCall.name);
           
           if (isWriteOperation) {
+            // Mark that we found a write operation to skip any remaining tool calls
+            foundWriteOperation = true;
+            
             // Stop agent loop and return confirmation request
             // Build action object based on tool type
             const action: any = {

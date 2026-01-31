@@ -167,17 +167,6 @@ export const handleAIConfirmation = async (
         error: !result.success,
       },
     });
-
-    // If successful, notify other users that pad was modified
-    if (result.success) {
-      socket.broadcast.to(padId).emit('message', {
-        type: 'AI_PAD_MODIFIED',
-        data: {
-          authorId,
-          description: 'AI Assistant modified the pad',
-        },
-      });
-    }
   } catch (error: any) {
     logger.error('Error handling AI confirmation:', error);
     socket.emit('message', {

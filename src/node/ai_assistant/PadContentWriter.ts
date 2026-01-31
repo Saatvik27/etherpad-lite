@@ -60,8 +60,15 @@ export class PadContentWriter {
       const currentText = pad.text();
       const insertPosition = currentText.length;
       
+      // Ensure text ends with newline (spliceText requires this)
+      let textToAppend = text;
+      if (!textToAppend.endsWith('\n')) {
+        textToAppend += '\n';
+      }
       // Add newline before if current text doesn't end with one
-      const textToAppend = (currentText && !currentText.endsWith('\n') ? '\n' : '') + text;
+      if (currentText && !currentText.endsWith('\n')) {
+        textToAppend = '\n' + textToAppend;
+      }
       
       // Use spliceText to properly insert at the end
       await pad.spliceText(insertPosition, 0, textToAppend, AI_AUTHOR_ID);
@@ -88,23 +95,29 @@ export class PadContentWriter {
     try {
       await ensureAIAuthor();
       const pad: PadType = await padManager.getPad(padId, null, AI_AUTHOR_ID);
-      const currentText = pad.text();
+      let currentText = pad.text();
       
       let replacements = 0;
-      let newText = currentText;
+      let offset = 0; // Track offset due to length changes
       let index = 0;
       
-      while ((index = newText.indexOf(searchText, index)) !== -1) {
-        newText = newText.substring(0, index) + 
-                  replacementText + 
-                  newText.substring(index + searchText.length);
-        index += replacementText.length;
+      // Find all occurrences first
+      const occurrences: number[] = [];
+      while ((index = currentText.indexOf(searchText, index)) !== -1) {
+        occurrences.push(index);
+        index += searchText.length;
+      }
+      
+      // Replace each occurrence using spliceText
+      for (const position of occurrences) {
+        const adjustedPos = position + offset;
+        await pad.spliceText(adjustedPos, searchText.length, replacementText, AI_AUTHOR_ID);
+        currentText = pad.text(); // Update current text
+        offset += replacementText.length - searchText.length;
         replacements++;
       }
 
       if (replacements > 0) {
-        await pad.setText(newText, AI_AUTHOR_ID);
-        
         // Broadcast changes to all connected clients
         await padMessageHandler.updatePadClients(pad);
         
@@ -155,10 +168,11 @@ export class PadContentWriter {
         for (let i = 0; i < lineNumber && i < lines.length; i++) {
           insertPosition += lines[i].length + 1; // +1 for newline
         }
-        // Add newline after if needed
-        if (!text.endsWith('\n')) {
-          text = text + '\n';
-        }
+      }
+      
+      // Ensure text ends with newline (spliceText requires this)
+      if (!text.endsWith('\n')) {
+        text += '\n';
       }
       
       // Use spliceText to properly insert at the position
@@ -185,21 +199,26 @@ export class PadContentWriter {
     try {
       await ensureAIAuthor();
       const pad: PadType = await padManager.getPad(padId, null, AI_AUTHOR_ID);
-      const currentText = pad.text();
+      let currentText = pad.text();
       
       let deletions = 0;
-      let newText = currentText;
       let index = 0;
       
-      while ((index = newText.indexOf(textToDelete, index)) !== -1) {
-        newText = newText.substring(0, index) + 
-                  newText.substring(index + textToDelete.length);
+      // Find all occurrences first
+      const occurrences: number[] = [];
+      while ((index = currentText.indexOf(textToDelete, index)) !== -1) {
+        occurrences.push(index);
+        index += textToDelete.length;
+      }
+      
+      // Delete each occurrence using spliceText (in reverse to maintain positions)
+      for (let i = occurrences.length - 1; i >= 0; i--) {
+        await pad.spliceText(occurrences[i], textToDelete.length, '', AI_AUTHOR_ID);
+        currentText = pad.text(); // Update current text
         deletions++;
       }
 
       if (deletions > 0) {
-        await pad.setText(newText, AI_AUTHOR_ID);
-        
         // Broadcast changes to all connected clients
         await padMessageHandler.updatePadClients(pad);
         
