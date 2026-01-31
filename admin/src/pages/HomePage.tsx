@@ -124,20 +124,31 @@ export const HomePage = () => {
         if (!pluginsSocket) {
             return
         }
-        pluginsSocket?.emit('search', searchParams)
-        pluginsSocket!.on('results:search', (data: {
+        
+        const handleSearchResults = (data: {
             results: PluginDef[]
         }) => {
+            console.log('Received search results:', data.results.length, 'plugins');
             setPlugins(data.results)
-        })
-        pluginsSocket!.on('results:searcherror', (data: {error: string}) => {
-            console.log(data.error)
+        }
+        
+        const handleSearchError = (data: {error: string}) => {
+            console.log('Search error:', data.error)
             useStore.getState().setToastState({
                 open: true,
                 title: "Error retrieving plugins",
                 success: false
             })
-        })
+        }
+        
+        pluginsSocket.on('results:search', handleSearchResults)
+        pluginsSocket.on('results:searcherror', handleSearchError)
+        pluginsSocket.emit('search', searchParams)
+        
+        return () => {
+            pluginsSocket.off('results:search', handleSearchResults)
+            pluginsSocket.off('results:searcherror', handleSearchError)
+        }
     }, [searchParams, pluginsSocket]);
 
     const uninstallPlugin  = (pluginName: string)=>{

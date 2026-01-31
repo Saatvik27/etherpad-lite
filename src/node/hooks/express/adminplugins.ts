@@ -87,11 +87,14 @@ exports.socketio = (hookName:string, args:ArgsExpressType, cb:Function) => {
       try {
         if (query.searchTerm) logger.info(`Plugin search: ${query.searchTerm}'`);
         const results = await search(query.searchTerm, /* maxCacheAge:*/ 60 * 10);
+        logger.info(`Search found ${Object.keys(results).length} plugins before filtering`);
         let res = Object.keys(results)
             .map((pluginName) => results[pluginName])
             .filter((plugin) => !pluginDefs.plugins[plugin.name]);
+        logger.info(`Returning ${res.length} plugins after filtering installed`);
         res = sortPluginList(res, query.sortBy, query.sortDir)
             .slice(query.offset, query.offset + query.limit);
+        logger.info(`Final result: ${res.length} plugins`);
         socket.emit('results:search', {results: res, query});
       } catch (err: any) {
         logger.error(`Error searching plugins: ${err}`);

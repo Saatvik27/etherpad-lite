@@ -170,10 +170,13 @@ export const getAvailablePlugins = async (maxCacheAge: number | false) => {
 
   // check cache age before making any request
   if (availablePlugins && maxCacheAge && (nowTimestamp - cacheTimestamp) <= maxCacheAge) {
+    logger.info(`Using cached plugins: ${Object.keys(availablePlugins).length} plugins`);
     return availablePlugins;
   }
 
+  logger.info(`Fetching plugins from ${settings.updateServer}/plugins.json`);
   const pluginsLoaded: AxiosResponse<MapArrayType<PackageInfo>> = await axios.get(`${settings.updateServer}/plugins.json`, {headers})
+  logger.info(`Received response with ${Object.keys(pluginsLoaded.data).length} plugins`);
   availablePlugins = pluginsLoaded.data;
   cacheTimestamp = nowTimestamp;
   return availablePlugins;
@@ -188,10 +191,17 @@ export const search = (searchTerm: string, maxCacheAge: number) => getAvailableP
         searchTerm = searchTerm.toLowerCase();
       }
 
+      logger.info(`Searching ${Object.keys(results).length} plugins for term: "${searchTerm}"`);
+      let filteredCount = 0;
+      let matchCount = 0;
+
       for (const pluginName in results) {
         // for every available plugin
-        // TODO: Also search in keywords here!
-        if (pluginName.indexOf(plugins.prefix) !== 0) continue;
+        // Check if the actual plugin name (not the key) starts with ep_
+        if (results[pluginName].name.indexOf(plugins.prefix) !== 0) {
+          filteredCount++;
+          continue;
+        }
 
         if (searchTerm && !~results[pluginName].name.toLowerCase().indexOf(searchTerm) &&
             (typeof results[pluginName].description !== 'undefined' &&
@@ -204,9 +214,11 @@ export const search = (searchTerm: string, maxCacheAge: number) => getAvailableP
           continue;
         }
 
+        matchCount++;
         res[pluginName] = results[pluginName];
       }
 
+      logger.info(`Filtered ${filteredCount} non-ep_ plugins, found ${matchCount} matches`);
       return res;
     }
 ).catch((err)=>{
