@@ -58,8 +58,13 @@ export class PadContentWriter {
       await ensureAIAuthor();
       const pad: PadType = await padManager.getPad(padId, null, AI_AUTHOR_ID);
       const currentText = pad.text();
-      const newText = currentText + (currentText.endsWith('\n') ? '' : '\n') + text;
-      await pad.setText(newText, AI_AUTHOR_ID);
+      const insertPosition = currentText.length;
+      
+      // Add newline before if current text doesn't end with one
+      const textToAppend = (currentText && !currentText.endsWith('\n') ? '\n' : '') + text;
+      
+      // Use spliceText to properly insert at the end
+      await pad.spliceText(insertPosition, 0, textToAppend, AI_AUTHOR_ID);
       
       // Broadcast changes to all connected clients
       await padMessageHandler.updatePadClients(pad);
@@ -128,11 +133,36 @@ export class PadContentWriter {
       const currentText = pad.text();
       const lines = currentText.split('\n');
       
-      // Insert at the specified line
-      lines.splice(lineNumber, 0, text);
-      const newText = lines.join('\n');
+      let insertPosition = 0;
       
-      await pad.setText(newText, AI_AUTHOR_ID);
+      // Calculate character position for the line number
+      if (lineNumber >= lines.length) {
+        // Insert at end if line number exceeds current lines
+        insertPosition = currentText.length;
+        // Add newline before if current text doesn't end with one
+        if (currentText && !currentText.endsWith('\n')) {
+          text = '\n' + text;
+        }
+      } else if (lineNumber <= 0) {
+        // Insert at beginning
+        insertPosition = 0;
+        // Add newline after if not already there
+        if (!text.endsWith('\n')) {
+          text = text + '\n';
+        }
+      } else {
+        // Insert after the specified line
+        for (let i = 0; i < lineNumber && i < lines.length; i++) {
+          insertPosition += lines[i].length + 1; // +1 for newline
+        }
+        // Add newline after if needed
+        if (!text.endsWith('\n')) {
+          text = text + '\n';
+        }
+      }
+      
+      // Use spliceText to properly insert at the position
+      await pad.spliceText(insertPosition, 0, text, AI_AUTHOR_ID);
       
       // Broadcast changes to all connected clients
       await padMessageHandler.updatePadClients(pad);
