@@ -7,6 +7,11 @@ export class SocketService {
   private maxReconnectAttempts = 5;
   private reconnectDelay = 2000;
   private onDisconnectCallback: (() => void) | null = null;
+  private onConnectCallback: (() => void) | null = null;
+  private listenersAttached = false;
+  private disconnectListener: (() => void) | null = null;
+  private connectListener: (() => void) | null = null;
+  private messageListener: ((msg: any) => void) | null = null;
 
   connect(): Promise<void> {
     return new Promise((resolve, reject) => {
@@ -24,6 +29,9 @@ export class SocketService {
             console.log('[AI Chat Widget] Socket connected successfully!');
             this.setupListeners();
             this.reconnectAttempts = 0;
+            if (this.onConnectCallback) {
+              this.onConnectCallback();
+            }
             resolve();
           } else if (padSocket) {
             // Socket exists but not connected yet, wait for it
@@ -34,6 +42,9 @@ export class SocketService {
               console.log('[AI Chat Widget] Socket connected after waiting!');
               this.setupListeners();
               this.reconnectAttempts = 0;
+              if (this.onConnectCallback) {
+                this.onConnectCallback();
+              }
               resolve();
             };
             
@@ -75,28 +86,40 @@ export class SocketService {
   private setupListeners() {
     if (!this.socket) return;
 
+    if (this.listenersAttached) {
+      return;
+    }
+
     console.log('[AI Chat Widget] Setting up socket listeners...');
-    
-    // Handle disconnect
-    this.socket.on('disconnect', () => {
+
+    this.disconnectListener = () => {
       console.warn('[AI Chat Widget] Socket disconnected');
       if (this.onDisconnectCallback) {
         this.onDisconnectCallback();
       }
       this.attemptReconnect();
-    });
-    
-    // Handle reconnect
-    this.socket.on('connect', () => {
+    };
+
+    this.connectListener = () => {
       console.log('[AI Chat Widget] Socket reconnected');
       this.reconnectAttempts = 0;
-    });
+      if (this.onConnectCallback) {
+        this.onConnectCallback();
+      }
+    };
 
-    this.socket.on('message', (msg: any) => {
+    this.messageListener = (msg: any) => {
       console.log('[AI Chat Widget] Received message:', msg);
       
       // Handle AI messages sent directly (not wrapped in COLLABROOM)
-      if (msg.type === 'AI_RESPONSE' || msg.type === 'AI_HISTORY' || msg.type === 'AI_PAD_MODIFIED') {
+      if (
+        msg.type === 'AI_RESPONSE' ||
+        msg.type === 'AI_HISTORY' ||
+        msg.type === 'AI_PAD_MODIFIED' ||
+        msg.type === 'AI_SESSIONS' ||
+        msg.type === 'AI_SESSION_CREATED' ||
+        msg.type === 'AI_SESSION_CLEARED'
+      ) {
         const handler = this.messageHandlers.get(msg.type);
         if (handler) {
           console.log('[AI Chat Widget] Calling handler for:', msg.type);
@@ -116,7 +139,30 @@ export class SocketService {
           handler(data);
         }
       }
-    });
+    };
+
+    this.socket.on('disconnect', this.disconnectListener);
+    this.socket.on('connect', this.connectListener);
+    this.socket.on('message', this.messageListener);
+    this.listenersAttached = true;
+  }
+
+  private removeListeners() {
+    if (!this.socket || !this.listenersAttached) return;
+
+    if (this.disconnectListener) {
+      this.socket.off('disconnect', this.disconnectListener);
+      this.disconnectListener = null;
+    }
+    if (this.connectListener) {
+      this.socket.off('connect', this.connectListener);
+      this.connectListener = null;
+    }
+    if (this.messageListener) {
+      this.socket.off('message', this.messageListener);
+      this.messageListener = null;
+    }
+    this.listenersAttached = false;
   }
 
   on(eventType: string, handler: (data: any) => void) {
@@ -146,6 +192,7 @@ export class SocketService {
 
   disconnect() {
     if (this.socket) {
+      this.removeListeners();
       this.messageHandlers.clear();
       this.socket = null;
     }
@@ -157,6 +204,10 @@ export class SocketService {
   
   onDisconnect(callback: () => void) {
     this.onDisconnectCallback = callback;
+  }
+
+  onConnect(callback: () => void) {
+    this.onConnectCallback = callback;
   }
   
   private attemptReconnect() {

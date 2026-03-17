@@ -1,11 +1,20 @@
 import React from 'react';
 import { Message as MessageType } from '../types';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 interface MessageProps {
   message: MessageType;
 }
 
 export function Message({ message }: MessageProps) {
+  const normalizedContent = message.content
+    // Unescape common markdown chars when models return escaped markdown.
+    .replace(/\\([*_`#\-[\]()])/g, '$1')
+    // Normalize excessive blank lines.
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+
   const getMessageStyles = () => {
     const baseStyles: React.CSSProperties = {
       padding: '12px 16px',
@@ -98,14 +107,35 @@ export function Message({ message }: MessageProps) {
         <div style={{ display: 'flex', alignItems: 'start', gap: '8px' }}>
           <span style={{ fontSize: '16px', flexShrink: 0 }}>{getEmoji()}</span>
           <div style={{ flex: 1 }}>
-            <p style={{
+            <div style={{
               fontSize: '14px',
               lineHeight: '1.5',
               margin: '0',
-              whiteSpace: 'pre-wrap',
             }}>
-              {message.content}
-            </p>
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                components={{
+                  p: ({children}) => <p style={{margin: '0 0 6px 0'}}>{children}</p>,
+                  ul: ({children}) => <ul style={{margin: '0 0 8px 18px', padding: 0}}>{children}</ul>,
+                  ol: ({children}) => <ol style={{margin: '0 0 8px 18px', padding: 0}}>{children}</ol>,
+                  li: ({children}) => <li style={{margin: '0 0 4px 0'}}>{children}</li>,
+                  strong: ({children}) => <strong style={{fontWeight: 700}}>{children}</strong>,
+                  em: ({children}) => <em>{children}</em>,
+                  code: ({children}) => (
+                    <code style={{
+                      background: 'rgba(15, 23, 42, 0.08)',
+                      borderRadius: '4px',
+                      padding: '1px 4px',
+                      fontSize: '12px',
+                    }}>
+                      {children}
+                    </code>
+                  ),
+                }}
+              >
+                {normalizedContent}
+              </ReactMarkdown>
+            </div>
             <span style={{
               fontSize: '11px',
               opacity: 0.6,

@@ -1,17 +1,27 @@
-# Running Etherpad with AI Assistant in Docker
+# Running Etherpad with AI Assistant
 
-## Quick Start
+Choose your setup method:
+- **[Docker Setup](#docker-setup)** - Isolated environment with PostgreSQL
+- **[Local Development](#local-development-without-docker)** - Run directly with pnpm (faster for development)
+
+---
+
+## Docker Setup
+
+### Quick Start
 
 1. **Set your API key in `.env` file:**
    ```bash
    AI_API_KEY=your-actual-groq-api-key
    ```
 
-2. **Rebuild and start the containers:**
+2. **Rebuild and start the containers (using dev compose file):**
    ```bash
-   docker compose down
-   docker compose up --build
+   docker compose -f docker-compose.yml -f docker-compose.dev.yml down
+   docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
    ```
+   
+   **Note:** You must use `docker-compose.dev.yml` to build the AI widget from your local code. The standard `docker-compose.yml` alone uses a pre-built image without the AI widget.
 
 3. **Access Etherpad:**
    - Open browser to http://localhost:9001
@@ -72,25 +82,30 @@ docker compose exec app printenv | grep AI_
 If you made code changes:
 ```bash
 # Stop and remove containers
-docker compose down
+docker compose -f docker-compose.yml -f docker-compose.dev.yml down
 
-# Remove old images
-docker compose build --no-cache
+# Remove old images and volumes (ensures clean state)
+docker compose -f docker-compose.yml -f docker-compose.dev.yml down -v
+
+# Rebuild without cache
+docker compose -f docker-compose.yml -f docker-compose.dev.yml build --no-cache
 
 # Start fresh
-docker compose up
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up
 ```
+
+**Note:** The dev compose file preserves `node_modules` from the Docker build while mounting your source code. This allows you to edit code locally while keeping dependencies intact.
 
 ### View real-time logs
 
 ```bash
-docker compose logs -f app
+docker compose -f docker-compose.yml -f docker-compose.dev.yml logs -f app
 ```
 
 ### Access container shell
 
 ```bash
-docker compose exec app sh
+docker compose -f docker-compose.yml -f docker-compose.dev.yml exec app sh
 ```
 
 ## Database Location
@@ -139,3 +154,99 @@ Once running, try asking the AI:
 - "How many words are in this pad?"
 
 All write operations require your confirmation!
+
+---
+
+## Local Development (Without Docker)
+
+You can also run Etherpad locally using pnpm instead of Docker:
+
+### Prerequisites
+
+- Node.js >= 20.0.0
+- pnpm installed globally: `npm install -g pnpm`
+
+### Setup Steps
+
+1. **Install dependencies:**
+   ```powershell
+   pnpm install
+   ```
+
+2. **Build the AI chat widget:**
+   ```powershell
+   .\build-ai-widget.bat
+   ```
+   Or manually:
+   ```powershell
+   cd src\ai-chat-widget
+   pnpm install
+   pnpm build
+   cd ..\..
+   ```
+
+3. **Configure AI in settings.json:**
+   
+   The file `settings.json` already has AI configuration at line 702. Make sure it looks like this:
+   ```json
+   "aiAssistant": {
+     "enabled": true,
+     "provider": "groq",
+     "apiKey": "your-groq-api-key-here",
+     "model": "llama-3.3-70b-versatile"
+   }
+   ```
+
+4. **Run Etherpad:**
+
+   **Development mode** (with auto-reload):
+   ```powershell
+   pnpm run dev
+   ```
+   
+   **Production mode:**
+   ```powershell
+   pnpm run prod
+   ```
+   
+   **Or use the Windows batch file:**
+   ```powershell
+   .\start.bat
+   ```
+
+5. **Access Etherpad:**
+   - Open http://localhost:9001
+   - Click the 🤖 icon or press `Alt+A`
+
+### Quick Commands
+
+| Command | Description |
+|---------|-------------|
+| `pnpm install` | Install all dependencies |
+| `pnpm run dev` | Start in development mode |
+| `pnpm run prod` | Start in production mode |
+| `.\build-ai-widget.bat` | Rebuild AI widget |
+| `pnpm run lint` | Run linter |
+| `pnpm run test` | Run tests |
+
+### Rebuilding After Changes
+
+If you modify the AI widget source code:
+```powershell
+# Rebuild just the widget
+cd src\ai-chat-widget
+pnpm build
+cd ..\..
+
+# Then restart Etherpad
+# Press Ctrl+C to stop, then run again:
+pnpm run dev
+```
+
+### Notes
+
+- **Local mode uses DirtyDB by default** (file-based database in `var/dirty.db`)
+- **Hot reload:** Development mode automatically restarts on file changes
+- **Port:** Default is 9001, configurable in `settings.json`
+- **No database setup needed** for basic usage
+- **AI widget files** are at `src/static/js/ai-widget/`

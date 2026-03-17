@@ -3,8 +3,21 @@ import ReactDOM from 'react-dom/client';
 import App from './App';
 import './index.css';
 
+declare global {
+  interface Window {
+    __AI_CHAT_WIDGET_INITIALIZED__?: boolean;
+  }
+}
+
 // Wait for DOM to be ready
 const initWidget = () => {
+  if (window.__AI_CHAT_WIDGET_INITIALIZED__ || document.getElementById('ai-chat-widget-root')) {
+    console.log('[AI Chat Widget] Initialization skipped (already mounted)');
+    return;
+  }
+
+  window.__AI_CHAT_WIDGET_INITIALIZED__ = true;
+
   const container = document.createElement('div');
   container.id = 'ai-chat-widget-root';
   container.style.cssText = 'position: fixed; z-index: 9999; pointer-events: none;';

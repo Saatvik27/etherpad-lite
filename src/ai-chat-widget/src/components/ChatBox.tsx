@@ -4,9 +4,10 @@ import { ThinkingIndicator } from './ThinkingIndicator';
 import { MessageList } from './MessageList';
 import { InputBox } from './InputBox';
 import { ConfirmationDialog } from './ConfirmationDialog';
+import { ChatSessionsPanel } from './ChatSessionsPanel';
 
 export function ChatBox() {
-  const { state, toggleChat } = useChat();
+  const { state, toggleChat, clearActiveSession } = useChat();
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -29,7 +30,7 @@ export function ChatBox() {
           position: 'fixed',
           bottom: '24px',
           left: '24px',
-          width: '420px',
+          width: 'min(760px, calc(100vw - 32px))',
           height: '550px',
           background: 'white',
           borderRadius: '16px',
@@ -59,14 +60,14 @@ export function ChatBox() {
             alignItems: 'center',
             gap: '12px',
           }}>
-            <span style={{ fontSize: '32px', lineHeight: 1 }}>🤖</span>
+            <span style={{ fontSize: '32px', lineHeight: 1 }}>📋</span>
             <div>
               <h2 style={{
                 fontWeight: '700',
                 fontSize: '18px',
                 margin: '0',
                 letterSpacing: '0.3px',
-              }}>AI Assistant</h2>
+              }}>Procurement Analyst</h2>
               <p style={{
                 fontSize: '13px',
                 color: 'rgba(255, 255, 255, 0.9)',
@@ -74,10 +75,27 @@ export function ChatBox() {
                 marginTop: '3px',
                 fontWeight: '500',
               }}>
-                {state.isConnected ? '✅ Online' : '⏳ Connecting...'}
+                {state.isConnected ? '✅ Ready to gather requirements' : '⏳ Connecting...'}
               </p>
             </div>
           </div>
+          <button
+            onClick={clearActiveSession}
+            style={{
+              padding: '6px 10px',
+              borderRadius: '999px',
+              border: '1px solid rgba(255, 255, 255, 0.35)',
+              background: 'rgba(255, 255, 255, 0.15)',
+              color: 'white',
+              fontSize: '12px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              marginRight: '8px',
+            }}
+            title="Clear current chat"
+          >
+            Clear Chat
+          </button>
           <button
             onClick={toggleChat}
             style={{
@@ -109,14 +127,20 @@ export function ChatBox() {
           </button>
         </div>
 
-        {/* Thinking Indicator */}
-        {state.isThinking && <ThinkingIndicator />}
+        <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
+          <ChatSessionsPanel />
 
-        {/* Messages */}
-        <MessageList />
+          <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
+            {/* Thinking Indicator */}
+            {(state.isThinking || state.isLoadingHistory) && <ThinkingIndicator />}
 
-        {/* Input */}
-        <InputBox />
+            {/* Messages */}
+            <MessageList />
+
+            {/* Input */}
+            <InputBox />
+          </div>
+        </div>
       </div>
 
       {/* Confirmation Dialog */}

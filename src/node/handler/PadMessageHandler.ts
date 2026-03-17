@@ -412,6 +412,9 @@ exports.handleMessage = async (socket:any, message: ClientVarMessage) => {
             case 'AI_CHAT_MESSAGE': await AIMessageHandler.handleAIChatMessage(socket, message.data); break;
             case 'AI_CONFIRM_ACTION': await AIMessageHandler.handleAIConfirmation(socket, message.data); break;
             case 'AI_GET_HISTORY': await AIMessageHandler.handleGetAIHistory(socket, message.data); break;
+            case 'AI_GET_SESSIONS': await AIMessageHandler.handleGetAISessions(socket, message.data); break;
+            case 'AI_CREATE_SESSION': await AIMessageHandler.handleCreateAISession(socket, message.data); break;
+            case 'AI_CLEAR_SESSION': await AIMessageHandler.handleClearAISession(socket, message.data); break;
             case 'SAVE_REVISION': await handleSaveRevisionMessage(socket, message as unknown as ClientSaveRevisionMessage); break;
             case 'CLIENT_MESSAGE': {
               const {type} = message.data.payload;

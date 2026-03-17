@@ -36,7 +36,7 @@ export function InputBox() {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Ask AI anything about this pad..."
+          placeholder="What do you need to procure? Describe your requirement..."
           disabled={state.isThinking}
           style={{
             flex: '1',

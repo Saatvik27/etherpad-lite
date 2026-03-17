@@ -115,6 +115,22 @@ export function ConfirmationDialog() {
           description: 'Fix grammar and spelling in entire pad',
           color: '#10B981',
         };
+
+      case 'initialize_requirements_document':
+        return {
+          icon: '📋',
+          title: 'Create Requirements Document',
+          description: 'Write the blank Requirement Definition Document template into the pad. You can fill in sections as the conversation progresses.',
+          color: '#7C3AED',
+        };
+
+      case 'update_document_section':
+        return {
+          icon: '✏️',
+          title: 'Update Document Section',
+          description: `Fill in section: "${action.sectionHeader}"`,
+          color: '#2563EB',
+        };
       
       default:
         return {

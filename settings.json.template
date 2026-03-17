@@ -743,7 +743,7 @@
      * - "gpt-4-turbo-preview"
      * - "gpt-3.5-turbo"
      */
-    "model": "${AI_MODEL:llama-3.3-70b-versatile}",
+    "model": "${AI_MODEL:openai/gpt-oss-120b}",
 
     /*
      * Maximum tokens in AI response

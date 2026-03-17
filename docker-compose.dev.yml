@@ -15,12 +15,16 @@ services:
       target: development
     command: ["pnpm", "run", "dev"]
     volumes:
-      # no volume mapping of node_modules as otherwise the build-time installed plugins will be overwritten with the mount
-      # the same applies to package.json and pnpm-lock.yaml in root dir as these would also get overwritten and build time installed plugins will be removed
+      # Mount source directories but exclude node_modules to preserve build-time dependencies
       - ./src:/opt/etherpad-lite/src
+      - /opt/etherpad-lite/src/node_modules
       - ./ui:/opt/etherpad-lite/ui
+      - /opt/etherpad-lite/ui/node_modules
       - ./admin:/opt/etherpad-lite/admin
+      - /opt/etherpad-lite/admin/node_modules
       - ./bin:/opt/etherpad-lite/bin
+      - /opt/etherpad-lite/bin/node_modules
+      - /opt/etherpad-lite/node_modules
     depends_on:
       - postgres
     environment:

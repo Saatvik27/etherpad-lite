@@ -1,17 +1,57 @@
-# AI Assistant for Etherpad Lite
+# AI Procurement Analyst for Etherpad Lite
 
 ## Overview
 
-The AI Assistant feature adds an intelligent chat interface to Etherpad that can read, analyze, and modify pad content using AI. Each user gets their own private AI chat with persistent history.
+The AI Procurement Analyst turns this collaborative editor into a guided procurement intake tool. Through natural conversation, the AI interviews the user, gathers requirements progressively, and builds a formal **Requirement Definition Document** directly in the pad — section by section — in real time.
+
+This is the first module of a broader procurement software suite. Its sole purpose is to go from *"I need t-shirts"* to a complete, defensible, supplier-ready requirements document — without any forms or uploads.
+
+## How It Works
+
+1. Open the AI panel (clipboard icon in the bottom-left, or **Alt+A**)
+2. Tell the analyst what you need to procure in plain language
+3. The analyst conducts a structured interview, asking 1–2 focused questions at a time
+4. As information is confirmed, the analyst writes each section of the document live into the pad
+5. The collaborative pad becomes the living Requirement Definition Document
+
+The analyst follows a five-phase intake flow:
+
+| Phase | What Happens |
+|---|---|
+| **Clarify** | Restate the need in precise terms; confirm understanding |
+| **Scope** | Explore scale, quantity, frequency, and intended users |
+| **Specify** | Functional requirements, quality, customization, branding |
+| **Validate** | Surface constraints, deadlines, compliance, open items |
+| **Draft** | Write the complete document, section by section |
+
+## Document Template
+
+The analyst produces a **Canadian Public Sector–style Requirement Definition Document** covering:
+
+- Header (title, org, date, procurement type)
+- A. Purpose & Measurable Objectives
+- B. Scope Boundaries (in-scope, out-of-scope, assumptions)
+- C. Background & Current State / Volumes
+- D. Deliverables, Acceptance Criteria & Timeline
+- E. Services Scope *(if applicable)*
+- F. Goods / Supply Scope *(if applicable)*
+- G. Functional & Non-Functional Requirements (Must/Should)
+- H. Service Levels & Reporting
+- I. Compliance, Privacy & Security
+- J. Locations & Logistics
+- K. Training & Knowledge Transfer
 
 ## Features
 
-- **Read Pad Content**: AI can read and search through the pad content
-- **Modify Pad Content**: AI can append or replace text (requires user confirmation)
-- **Summarize Content**: AI can provide summaries and analysis
-- **Persistent History**: Each user's chat history is saved per pad
-- **User Confirmation**: All write operations require explicit user approval
-- **Rate Limiting**: Configurable request limits to prevent abuse
+- **Conversational intake**: Natural language — no forms or uploads required
+- **Live document building**: Writes each section to the pad as it's confirmed  
+- **Template initialization**: One-click blank document scaffold with TBD placeholders
+- **Section-level updates**: Targets named sections precisely without touching others
+- **Industry notes**: Helps users with common specifications, labelled clearly
+- **Confirmation dialogs**: All write operations require explicit user approval
+- **Persistent history**: Each user's chat history is saved per pad
+- **Rate limiting**: Configurable request limits to prevent abuse
+
 
 ## Configuration
 

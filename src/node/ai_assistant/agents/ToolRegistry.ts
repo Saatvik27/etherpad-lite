@@ -7,6 +7,7 @@ import {DynamicStructuredTool} from '@langchain/core/tools';
 import {z} from 'zod';
 import {PadContentReader} from '../PadContentReader';
 import {PadContentWriter} from '../PadContentWriter';
+import {REQUIREMENTS_TEMPLATE} from '../RequirementsTemplate';
 
 export class ToolRegistry {
   /**
@@ -23,6 +24,10 @@ export class ToolRegistry {
       this.createAnalyzeStructureTool(padId),
       this.createGetAuthorTextTool(padId),
       this.createGetChangesSinceTool(padId),
+
+      // Procurement requirements tools
+      this.createInitializeRequirementsDocumentTool(padId, authorId),
+      this.createUpdateDocumentSectionTool(padId, authorId),
       
       // Write tools
       this.createInsertTextTool(padId, authorId),
@@ -39,6 +44,94 @@ export class ToolRegistry {
       this.createExpandSectionTool(padId, authorId),
       this.createFixGrammarTool(padId, authorId),
     ];
+  }
+
+  /**
+   * Tool: Initialize a blank Requirement Definition Document in the pad
+   */
+  private static createInitializeRequirementsDocumentTool(padId: string, authorId: string) {
+    return new DynamicStructuredTool({
+      name: 'initialize_requirements_document',
+      description:
+        'Write the blank Requirement Definition Document template into the pad. ' +
+        'Call this ONCE at the start of a procurement intake when the pad is empty or when the user asks to start a new requirements document. ' +
+        'After calling this, fill in sections using update_document_section or replace_text_in_pad.',
+      schema: z.object({
+        procurementType: z
+          .enum(['Services Only', 'Goods Only', 'Mixed (Services + Goods)'])
+          .describe('Type of procurement'),
+        organizationName: z.string().optional().describe('Organization or branch name if known'),
+        title: z.string().optional().describe('Brief descriptive title for the procurement (e.g. "Supply of Custom T-Shirts")'),
+      }),
+      func: async ({procurementType, organizationName, title}) => {
+        const currentPadText = await PadContentReader.getPadText(padId);
+        const hasTemplateAlready =
+          currentPadText.includes('Requirement Definition Document') &&
+          currentPadText.includes('A1. Purpose') &&
+          currentPadText.includes('Open Questions and Assumptions');
+
+        if (hasTemplateAlready) {
+          return JSON.stringify({
+            action: 'noop',
+            skipWrite: true,
+            message:
+              'Requirement Definition Document template already exists. Do not re-initialize; continue by updating sections and asking the next procurement question.',
+            requiresConfirmation: false,
+          });
+        }
+
+        const today = new Date().toISOString().split('T')[0];
+        let doc = REQUIREMENTS_TEMPLATE;
+        // Patch known header fields before writing
+        if (title) doc = doc.replace('Scope of Work / Supply', title);
+        doc = doc.replace('| Procurement Type | TBD |', `| Procurement Type | ${procurementType} |`);
+        if (organizationName)
+          doc = doc.replace('| Organization / Branch | TBD |', `| Organization / Branch | ${organizationName} |`);
+        doc = doc.replace('| Date | TBD |', `| Date | ${today} |`);
+        return JSON.stringify({
+          action: 'initialize_requirements_document',
+          text: doc,
+          description: `Initialize Requirement Definition Document: ${title || 'Procurement Requirements'}`,
+          requiresConfirmation: true,
+        });
+      },
+    });
+  }
+
+  /**
+   * Tool: Update a specific named section in the requirements document
+   */
+  private static createUpdateDocumentSectionTool(padId: string, authorId: string) {
+    return new DynamicStructuredTool({
+      name: 'update_document_section',
+      description:
+        'Update the content of a specific section in the Requirement Definition Document. ' +
+        'Use this instead of rewrite_section when you know the section name but not the line numbers. ' +
+        'The tool searches for the section header, finds its extent, and replaces the body with your new content. ' +
+        'Provide substantial professional content (not one-liners): detailed paragraph(s) and/or 3-6 specific bullets as appropriate.',
+      schema: z.object({
+        sectionHeader: z
+          .string()
+          .describe(
+            'The exact section header text as it appears in the document (e.g. "A1. Purpose" or "B1. In Scope")'
+          ),
+        newContent: z
+          .string()
+          .describe(
+            'The new content to place under this section header (do NOT include the header itself). Must be detailed and procurement-grade, not a short sentence.'
+          ),
+        description: z.string().optional().describe('Brief description of what is being updated'),
+      }),
+      func: async ({sectionHeader, newContent, description}) => {
+        return JSON.stringify({
+          action: 'update_document_section',
+          sectionHeader,
+          newContent,
+          description: description || `Update section: ${sectionHeader}`,
+          requiresConfirmation: true,
+        });
+      },
+    });
   }
 
   /**
