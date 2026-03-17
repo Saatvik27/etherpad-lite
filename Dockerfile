@@ -3,7 +3,7 @@
 # https://github.com/ether/etherpad-lite
 #
 # Author: muxator
-ARG BUILD_ENV=git
+ARG BUILD_ENV=copy
 
 FROM node:lts-alpine AS adminbuild
 RUN npm install -g pnpm@latest
