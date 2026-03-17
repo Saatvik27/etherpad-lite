@@ -6,7 +6,7 @@ Choose your setup method:
 
 ---
 
-## Docker Setup
+## Docker Setup (Custom Image)
 
 ### Quick Start
 
@@ -15,15 +15,20 @@ Choose your setup method:
    AI_API_KEY=your-actual-groq-api-key
    ```
 
-2. **Rebuild and start the containers (using dev compose file):**
+2. **Set your Supabase DB password in `.env`:**
    ```bash
-   docker compose -f docker-compose.yml -f docker-compose.dev.yml down
-   docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+   SUPABASE_DB_PASSWORD=your-supabase-db-password
    ```
-   
-   **Note:** You must use `docker-compose.dev.yml` to build the AI widget from your local code. The standard `docker-compose.yml` alone uses a pre-built image without the AI widget.
 
-3. **Access Etherpad:**
+3. **Rebuild and start using your local codebase image:**
+   ```bash
+   docker compose down
+   docker compose up --build
+   ```
+
+   **Note:** `docker-compose.yml` now builds from your local `Dockerfile` and does not pull `etherpad/etherpad:latest`.
+
+4. **Access Etherpad:**
    - Open browser to http://localhost:9001
    - Click the 🤖 icon on the left side or press `Alt+A`
 
@@ -49,6 +54,7 @@ AI_API_KEY=gsk_your_key_here
 # Provider and Model
 AI_PROVIDER=groq
 AI_MODEL=llama-3.3-70b-versatile
+SUPABASE_DB_PASSWORD=your-db-password
 ```
 
 ## Troubleshooting
@@ -82,45 +88,34 @@ docker compose exec app printenv | grep AI_
 If you made code changes:
 ```bash
 # Stop and remove containers
-docker compose -f docker-compose.yml -f docker-compose.dev.yml down
+docker compose down
 
 # Remove old images and volumes (ensures clean state)
-docker compose -f docker-compose.yml -f docker-compose.dev.yml down -v
+docker compose down -v
 
 # Rebuild without cache
-docker compose -f docker-compose.yml -f docker-compose.dev.yml build --no-cache
+docker compose build --no-cache
 
 # Start fresh
-docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+docker compose up
 ```
-
-**Note:** The dev compose file preserves `node_modules` from the Docker build while mounting your source code. This allows you to edit code locally while keeping dependencies intact.
 
 ### View real-time logs
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.dev.yml logs -f app
+docker compose logs -f app
 ```
 
 ### Access container shell
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.dev.yml exec app sh
+docker compose exec app sh
 ```
 
-## Database Location
+## Database
 
-The PostgreSQL data is stored in a Docker volume:
-```bash
-# View volume info
-docker volume inspect etherpad-lite_postgres_data
-
-# Backup database
-docker compose exec postgres pg_dump -U admin etherpad > backup.sql
-
-# Restore database
-cat backup.sql | docker compose exec -T postgres psql -U admin etherpad
-```
+This setup uses external Supabase PostgreSQL (configured in `settings.json`).
+No local Postgres container is created by default.
 
 ## Production Deployment
 
