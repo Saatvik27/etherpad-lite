@@ -248,23 +248,26 @@
    * https://www.npmjs.com/package/ueberdb2
    */
 
-  "dbType": "${DB_TYPE:dirty}",
+  "dbType": "${DB_TYPE:postgres}",
   "dbSettings": {
-    "host":       "${DB_HOST:undefined}",
-    "port":       "${DB_PORT:undefined}",
-    "database":   "${DB_NAME:undefined}",
-    "user":       "${DB_USER:undefined}",
-    "password":   "${DB_PASS:undefined}",
+    "host":       "${SUPABASE_DB_HOST:undefined}",
+    "port":       "${SUPABASE_DB_PORT:5432}",
+    "database":   "${SUPABASE_DB_NAME:postgres}",
+    "user":       "${SUPABASE_DB_USER:undefined}",
+    "password":   "${SUPABASE_DB_PASSWORD:undefined}",
     "charset":    "${DB_CHARSET:undefined}",
     "filename":   "${DB_FILENAME:var/dirty.db}",
     "collection": "${DB_COLLECTION:undefined}",
-    "url":        "${DB_URL:undefined}"
+    "url":        "${DB_URL:undefined}",
+    "ssl": {
+      "rejectUnauthorized": false
+    }
   },
 
   /*
    * The default text of a pad
    */
-  "defaultPadText" : "${DEFAULT_PAD_TEXT:Welcome to Etherpad!\n\nThis pad text is synchronized as you type, so that everyone viewing this page sees the same text. This allows you to collaborate seamlessly on documents!\n\nGet involved with Etherpad at https:\/\/etherpad.org\n}",
+  "defaultPadText" : "${DEFAULT_PAD_TEXT:}",
 
   /*
    * Default Pad behavior.
